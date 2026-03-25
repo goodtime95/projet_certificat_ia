@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+.eggs/
+python-debug.log
+
+# Virtualenv
+.venv/
+venv/
+ENV/
+env/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Application data and caches
+data/
+*.sqlite3
+*.db
+*.log
+*.jsonl
+
+# Indexes and model artifacts
+rag_index.json.faiss
+rag_index.json.meta
+.agent_trace.jsonl
+
+# IDE/editor folders
+.vscode/
+.idea/
+
+# Backup files
+*~
+*.bak
+*.swp
