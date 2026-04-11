@@ -27,6 +27,9 @@ data/
 *.log
 *.jsonl
 
+# Old code
+old/
+
 # Indexes and model artifacts
 rag_index.json.faiss
 rag_index.json.meta
