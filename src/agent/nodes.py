@@ -12,6 +12,8 @@ from src.domain.models import (
     UserIntent,
 )
 
+from src.domain.features import ProductFeatures
+
 import unicodedata
 
 # =========================
@@ -81,6 +83,9 @@ def _detect_insurers(text: str) -> List[str]:
 
     if "generali" in lower or "générali" in lower:
         found.append("Generali")
+
+    if "aep" in lower or "aep" in lower:
+        found.append("AEP")
 
     # Remove duplicates while preserving insertion order
     seen = set()
@@ -184,7 +189,6 @@ def _detect_features(text: str) -> List[str]:
 
     return features
 
-
 # =========================
 # NODE: PARSE USER QUERY
 # =========================
@@ -222,7 +226,6 @@ def parse_user_query(state):
     return {
         "parsed_request": parsed,
     }
-
 
 # =========================
 # NODE: CLASSIFY USER INTENT
@@ -279,7 +282,6 @@ def classify_user_intent(state):
 
     return {"intent": UserIntent.CLARIFICATION_NEEDED}
 
-
 # =========================
 # NODE: DETECT MISSING INFORMATION
 # =========================
@@ -311,6 +313,27 @@ def detect_missing_information(state):
 
     return {"missing_fields": missing}
 
+# =========================
+# NODE: EXTRACT PRODUCT FEATURES
+# =========================
+
+def extract_product_features(state):
+    """
+    Build a normalized ProductFeatures object from the parsed request.
+    This node must remain robust even when the request is incomplete.
+    """
+
+    request = state["parsed_request"]
+
+    features = ProductFeatures(
+        has_worst_of=(request.payoff_type == "worst-of") if request.payoff_type else None,
+        has_autocall=(request.product_type == "autocall") if request.product_type else None,
+        underlying_type=request.underlying_type,
+        basket_size=len(request.underlyings) if request.underlyings else None,
+    )
+
+    state["product_features"] = features
+    return state
 
 # =========================
 # NODE: ROUTING AFTER ANALYSIS
@@ -339,7 +362,6 @@ def route_after_analysis(state):
         return "generate_decision_stub"
 
     return "generate_partial_answer"
-
 
 # =========================
 # NODE: SUMMARY RESPONSE GENERATION
@@ -420,7 +442,6 @@ def generate_partial_answer(state):
     )
 
     return {"final_answer": answer}
-
 
 # =========================
 # NODE: DECISION STUB GENERATION

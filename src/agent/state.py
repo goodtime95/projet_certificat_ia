@@ -6,6 +6,7 @@ from src.domain.models import (
     FinalAnswer,
     UserIntent,
 )
+from src.domain.features import ProductFeatures
 
 
 class AgentState(TypedDict, total=False):
@@ -24,6 +25,8 @@ class AgentState(TypedDict, total=False):
         intent classification
             ↓
         missing information detection
+            ↓
+        product_features
             ↓
         document retrieval (RAG)
             ↓
@@ -54,6 +57,16 @@ class AgentState(TypedDict, total=False):
     # List of missing information required to complete feasibility analysis.
     # Example:
     # ["underlying_type", "capital_protection"]
+
+    product_features: ProductFeatures
+    # Normalized business representation derived from parsed_request.
+    # This object isolates rule-relevant product characteristics in a
+    # deterministic format that can later be consumed by the rule engine.
+    # Example:
+    # - has_autocall
+    # - has_worst_of
+    # - underlying_type
+    # - basket_size
 
     retrieved_chunks: List[Dict[str, Any]]
     # Document fragments retrieved from the RAG layer.
