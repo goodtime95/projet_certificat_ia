@@ -1,77 +1,226 @@
 [
   {
     "id": 1,
-    "category": "referencing_feasibility",
-    "query": "Je veux faire référencer un autocall worst-of sur actions européennes chez SwissLife, c’est possible ?"
+    "category": "comprehension",
+    "query": "J’ai deux sujets à pousser : un phoenix worst-of 10 ans sur Generali / BNP et un Athena EuroStoxx 50 6 ans, est-ce que ça se référence plutôt chez AXA ou chez AEP ?",
+    "intent_expected": "referencing_comparison",
+    "entities_expected": {
+      "products": ["phoenix", "athena"],
+      "payoff": ["worst-of"],
+      "underlyings": ["Generali", "BNP", "EuroStoxx 50"],
+      "maturity": ["10 ans", "6 ans"],
+      "insurers": ["AXA", "AEP"]
+    },
+    "missing_expected": ["issuer"],
+    "error_expected": false,
+    "should_refuse_or_clarify": false,
+    "notes_eval": "Le modèle doit identifier 2 produits et 2 assureurs, sans fusionner les analyses"
   },
   {
     "id": 2,
-    "category": "referencing_feasibility",
-    "query": "Est-ce qu’un phoenix sur indice propriétaire peut être référencé chez Generali ?"
+    "category": "comprehension",
+    "query": "Pour Cardif, entre un phoenix bearish 12 ans 100% KG sur taux et un autocall EuroStoxx 50 6 ans très vanilla, tu vois lequel comme le plus simple à faire passer ?",
+    "intent_expected": "referencing_comparison",
+    "entities_expected": {
+      "products": ["phoenix", "autocall"],
+      "underlyings": ["taux", "EuroStoxx 50"],
+      "payoff": ["bearish"],
+      "maturity": ["12 ans", "6 ans"],
+      "capital_protection": ["100%"],
+      "insurers": ["Cardif"]
+    },
+    "missing_expected": ["issuer"],
+    "error_expected": false,
+    "should_refuse_or_clarify": false,
+    "notes_eval": "Le modèle doit bien conserver la structure comparative et ne pas ignorer le sous-jacent taux"
   },
   {
     "id": 3,
-    "category": "referencing_feasibility",
-    "query": "Peut-on faire référencer un EMTN autocall bearish sur TEC 10 de maturité 12 ans chez AXA ?"
+    "category": "comprehension",
+    "query": "J’hésite entre SwissLife et Generali pour un reverse Nasdaq 8 ans et un phoenix panier bancaire Europe, tu me dis lequel des deux assureurs est le plus jouable ?",
+    "intent_expected": "referencing_comparison",
+    "entities_expected": {
+      "products": ["reverse", "phoenix"],
+      "underlyings": ["Nasdaq", "panier bancaire Europe"],
+      "maturity": ["8 ans"],
+      "insurers": ["SwissLife", "Generali"]
+    },
+    "missing_expected": ["issuer", "maturity_for_phoenix"],
+    "error_expected": false,
+    "should_refuse_or_clarify": false,
+    "notes_eval": "Le modèle doit traiter 2 produits et 2 assureurs, et voir que la maturité n’est donnée que pour un des deux produits"
   },
   {
     "id": 4,
-    "category": "insurer_constraints",
-    "query": "Quelles sont les contraintes principales de référencement des produits structurés chez AEP ?"
+    "category": "missing_information",
+    "query": "Je veux lancer un structuré assez standard chez AXA, tu penses qu’on peut le faire référencer vite ?",
+    "intent_expected": "referencing_feasibility",
+    "entities_expected": {
+      "insurers": ["AXA"]
+    },
+    "missing_expected": ["product_structure", "underlying", "maturity", "issuer"],
+    "error_expected": false,
+    "should_refuse_or_clarify": true,
+    "notes_eval": "Le modèle doit demander des précisions concrètes, pas juste dire qu’il manque des informations"
   },
   {
     "id": 5,
-    "category": "insurer_constraints",
-    "query": "Est-ce que CNP accepte les actions japonaises pour les autocalls ?"
+    "category": "missing_information",
+    "query": "J’ai un client qui veut du produit structuré actions en assurance vie et je voudrais le faire passer sur une plateforme, tu vois si c’est faisable ?",
+    "intent_expected": "referencing_feasibility",
+    "entities_expected": {
+      "underlyings": ["actions"]
+    },
+    "missing_expected": ["insurer", "platform", "product_structure", "maturity", "issuer"],
+    "error_expected": false,
+    "should_refuse_or_clarify": true,
+    "notes_eval": "La présence d’un client ne doit pas faire sortir le modèle du périmètre ; il doit clarifier assureur et structure"
   },
   {
     "id": 6,
-    "category": "insurer_constraints",
-    "query": "Y a-t-il des restrictions sur les indices propriétaires chez Cardif pour le référencement ?"
+    "category": "incorrect_inputs",
+    "query": "Je veux mettre un autocall SX5E en UC dans le fonds euro Generali, c’est bien le bon setup pour l’assurance vie française non ?",
+    "intent_expected": "referencing_feasibility",
+    "entities_expected": {
+      "products": ["autocall"],
+      "underlyings": ["SX5E"],
+      "insurers": ["Generali"]
+    },
+    "missing_expected": [],
+    "error_expected": true,
+    "should_refuse_or_clarify": true,
+    "notes_eval": "Le modèle doit corriger explicitement l’incompatibilité UC / fonds euro"
   },
   {
     "id": 7,
-    "category": "user_assumption_trap",
-    "query": "SwissLife accepte tous les autocalls worst-of maintenant, tu confirmes ?"
+    "category": "incorrect_inputs",
+    "query": "On est d’accord qu’AXA prend maintenant automatiquement tous les EMTN 12 ans bien notés, donc je peux déjà partir sur la structure sans même attendre leur retour ?",
+    "intent_expected": "policy_confirmation",
+    "entities_expected": {
+      "products": ["EMTN"],
+      "maturity": ["12 ans"],
+      "insurers": ["AXA"]
+    },
+    "missing_expected": ["official_policy_source"],
+    "error_expected": true,
+    "should_refuse_or_clarify": true,
+    "notes_eval": "Le modèle doit refuser la validation implicite et ne pas se laisser entraîner par la formulation assertive"
   },
   {
     "id": 8,
-    "category": "user_assumption_trap",
-    "query": "Chez Generali les indices propriétaires passent toujours en référencement, donc c’est bon pour mon produit ?"
+    "category": "incorrect_inputs",
+    "query": "Je monte un EMTN UCITS autocall actions US pour Cardif, avec logeabilité assurance vie évidente normalement, tu confirmes ?",
+    "intent_expected": "referencing_feasibility",
+    "entities_expected": {
+      "products": ["EMTN", "autocall"],
+      "underlyings": ["actions US"],
+      "insurers": ["Cardif"]
+    },
+    "missing_expected": [],
+    "error_expected": true,
+    "should_refuse_or_clarify": true,
+    "notes_eval": "Le modèle doit relever l’incohérence EMTN / UCITS et ne pas valider la prémisse"
   },
   {
     "id": 9,
-    "category": "user_assumption_trap",
-    "query": "AXA référence automatiquement les notes Goldman Sachs, je peux y aller ?"
+    "category": "incorrect_inputs",
+    "query": "Je peux faire un phoenix capital garanti 100% en fonds euros sur actions directes chez AEP ou il y a un sujet ?",
+    "intent_expected": "referencing_feasibility",
+    "entities_expected": {
+      "products": ["phoenix"],
+      "underlyings": ["actions directes"],
+      "capital_protection": ["100%"],
+      "insurers": ["AEP"]
+    },
+    "missing_expected": [],
+    "error_expected": true,
+    "should_refuse_or_clarify": true,
+    "notes_eval": "Plusieurs signaux potentiellement incohérents sont mêlés ; le modèle doit au moins signaler les incompatibilités évidentes et demander clarification"
   },
   {
     "id": 10,
-    "category": "missing_information",
-    "query": "Je veux faire référencer un produit structuré chez Generali, tu peux me dire si ça passe ?"
+    "category": "language_robustness",
+    "query": "Client vx phx eurostx avie AXA ca psse ?",
+    "intent_expected": "referencing_feasibility",
+    "entities_expected": {
+      "products": ["phoenix"],
+      "underlyings": ["EuroStoxx"],
+      "insurers": ["AXA"]
+    },
+    "missing_expected": ["maturity", "issuer"],
+    "error_expected": false,
+    "should_refuse_or_clarify": false,
+    "notes_eval": "Parsing dégradé attendu malgré abréviations et fautes"
   },
   {
     "id": 11,
-    "category": "missing_information",
-    "query": "Mon client veut un produit structuré actions dans son assurance vie, qu’est-ce que je peux proposer ?"
+    "category": "language_robustness",
+    "query": "Nasdaq 8a autocall swisslife ok ou mort ?",
+    "intent_expected": "referencing_feasibility",
+    "entities_expected": {
+      "products": ["autocall"],
+      "underlyings": ["Nasdaq"],
+      "maturity": ["8 ans"],
+      "insurers": ["SwissLife"]
+    },
+    "missing_expected": ["issuer"],
+    "error_expected": false,
+    "should_refuse_or_clarify": false,
+    "notes_eval": "Le modèle doit reconstruire correctement la phrase courte et familière"
   },
   {
     "id": 12,
-    "category": "missing_information",
-    "query": "Je peux faire référencer ce produit sur une plateforme assurance ?"
+    "category": "language_robustness",
+    "query": "Cardif phx bear 12y KI 100 passe plus easy qu’un Athena sx5e 6y ?",
+    "intent_expected": "referencing_comparison",
+    "entities_expected": {
+      "products": ["phoenix", "athena"],
+      "underlyings": ["SX5E"],
+      "payoff": ["bearish"],
+      "maturity": ["12 ans", "6 ans"],
+      "capital_protection": ["100%"],
+      "insurers": ["Cardif"]
+    },
+    "missing_expected": ["issuer", "underlying_for_phoenix"],
+    "error_expected": false,
+    "should_refuse_or_clarify": false,
+    "notes_eval": "Robustesse au mélange FR/EN, jargon et abréviations"
   },
   {
     "id": 13,
-    "category": "hybrid_referencing_product",
-    "query": "Mon client aime les actions et je travaille avec Cardif, quel produit proposer ?"
+    "category": "scope_boundary",
+    "query": "En ce moment, quelle structure actions tu trouves la plus intéressante à proposer en assurance vie ?",
+    "intent_expected": "out_of_scope",
+    "entities_expected": {
+      "underlyings": ["actions"]
+    },
+    "missing_expected": [],
+    "error_expected": false,
+    "should_refuse_or_clarify": true,
+    "notes_eval": "Le modèle doit reconnaître une demande de conseil produit, hors périmètre référencement"
   },
   {
     "id": 14,
-    "category": "hybrid_referencing_product",
-    "query": "Entre un phoenix et un athena sur actions, lequel sera plus facile à faire référencer chez AXA ?"
+    "category": "scope_boundary",
+    "query": "Pour un client prudent qui veut du rendement, tu irais plus sur un phoenix ou un athena en assurance vie ?",
+    "intent_expected": "out_of_scope",
+    "entities_expected": {
+      "products": ["phoenix", "athena"]
+    },
+    "missing_expected": [],
+    "error_expected": false,
+    "should_refuse_or_clarify": true,
+    "notes_eval": "Le modèle ne doit pas basculer en conseil d’allocation"
   },
   {
     "id": 15,
-    "category": "hybrid_referencing_product",
-    "query": "Je cherche une structure simple à faire référencer rapidement en assurance vie, tu recommandes quoi ?"
+    "category": "scope_boundary",
+    "query": "Tu me recommanderais quoi comme structuré simple à vendre vite en assurance vie en ce moment ?",
+    "intent_expected": "out_of_scope",
+    "entities_expected": {},
+    "missing_expected": [],
+    "error_expected": false,
+    "should_refuse_or_clarify": true,
+    "notes_eval": "Le modèle doit refuser la recommandation commerciale et rester dans le périmètre"
   }
 ]

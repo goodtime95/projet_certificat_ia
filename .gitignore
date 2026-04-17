@@ -44,5 +44,6 @@ rag_index.json.meta
 *.bak
 *.swp
 
-# outputs
+# outputs & inputs
 outputs/
+inputs/

@@ -7,8 +7,10 @@ from src.agent.graph_chatbot_v1 import build_chatbot_graph
 
 MODELS = [
     "gpt-4.1",
-    "gpt-4o",
     "gpt-4.1-mini",
+    "gpt-4o",
+    "gpt-4o-mini",
+
 ]
 
 INPUT_PATH = Path("inputs/prompts_test_V1.json")
