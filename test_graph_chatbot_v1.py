@@ -5,53 +5,97 @@ from pprint import pprint
 from src.agent.graph_chatbot_v1 import build_chatbot_graph
 
 
-MODEL_NAME = "gpt-4.1"
-OUTPUT_PATH = Path("outputs/chatbot_tests_gpt_4_1.json")
+MODELS = [
+    "gpt-4.1",
+    "gpt-4o",
+    "gpt-4.1-mini",
+]
+
+INPUT_PATH = Path("inputs/prompts_test_V1.json")
+OUTPUT_DIR = Path("outputs")
 
 
-def main():
+def load_prompts(path: Path):
     """
-    Run a minimal test of the chatbot graph and save results to JSON.
+    Load prompt dataset from JSON file.
     """
 
-    graph = build_chatbot_graph(model_name=MODEL_NAME)
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)
 
-    test_queries = [
-        "Je veux faire référencer un autocall worst-of chez SwissLife, est-ce possible ?",
-        "Quelles sont les contraintes principales de référencement chez AEP ?",
-        "Mon client aime les actions, quel produit structuré proposer ?",
-    ]
+
+def run_model_tests(model_name, prompts):
+    """
+    Execute all prompts for a given model.
+    """
+
+    print("=" * 80)
+    print(f"Testing model: {model_name}")
+    print("=" * 80)
+
+    graph = build_chatbot_graph(model_name=model_name)
 
     results = []
 
-    print(f"Model under test: {MODEL_NAME}")
-    print()
+    for item in prompts:
+        prompt_id = item["id"]
+        category = item["category"]
+        query = item["query"]
 
-    for i, query in enumerate(test_queries, start=1):
-        print("=" * 80)
-        print(f"TEST {i}")
+        print("-" * 60)
+        print(f"Prompt {prompt_id} | Category: {category}")
         print(query)
 
         result = graph.invoke({"user_query": query})
+
         pprint(result)
         print()
 
         results.append(
             {
-                "test_id": i,
-                "model": result.get("model_used", MODEL_NAME),
+                "id": prompt_id,
+                "category": category,
+                "model": model_name,
                 "query": query,
                 "answer": result.get("answer"),
                 "error": result.get("error"),
             }
         )
 
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    return results
 
-    with OUTPUT_PATH.open("w", encoding="utf-8") as f:
+
+def save_results(model_name, results):
+    """
+    Save model results to JSON file.
+    """
+
+    OUTPUT_DIR.mkdir(exist_ok=True)
+
+    filename = f"results_{model_name.replace('.', '_')}.json"
+
+    output_path = OUTPUT_DIR / filename
+
+    with output_path.open("w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
 
-    print(f"Results saved to: {OUTPUT_PATH}")
+    print(f"Saved results to {output_path}")
+
+
+def main():
+    """
+    Run evaluation across all models.
+    """
+
+    prompts = load_prompts(INPUT_PATH)
+
+    print(f"Loaded {len(prompts)} prompts")
+
+    for model_name in MODELS:
+
+        results = run_model_tests(model_name, prompts)
+
+        save_results(model_name, results)
 
 
 if __name__ == "__main__":

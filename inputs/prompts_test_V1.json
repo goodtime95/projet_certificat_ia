@@ -1,0 +1,77 @@
+[
+  {
+    "id": 1,
+    "category": "referencing_feasibility",
+    "query": "Je veux faire référencer un autocall worst-of sur actions européennes chez SwissLife, c’est possible ?"
+  },
+  {
+    "id": 2,
+    "category": "referencing_feasibility",
+    "query": "Est-ce qu’un phoenix sur indice propriétaire peut être référencé chez Generali ?"
+  },
+  {
+    "id": 3,
+    "category": "referencing_feasibility",
+    "query": "Peut-on faire référencer un EMTN autocall bearish sur TEC 10 de maturité 12 ans chez AXA ?"
+  },
+  {
+    "id": 4,
+    "category": "insurer_constraints",
+    "query": "Quelles sont les contraintes principales de référencement des produits structurés chez AEP ?"
+  },
+  {
+    "id": 5,
+    "category": "insurer_constraints",
+    "query": "Est-ce que CNP accepte les actions japonaises pour les autocalls ?"
+  },
+  {
+    "id": 6,
+    "category": "insurer_constraints",
+    "query": "Y a-t-il des restrictions sur les indices propriétaires chez Cardif pour le référencement ?"
+  },
+  {
+    "id": 7,
+    "category": "user_assumption_trap",
+    "query": "SwissLife accepte tous les autocalls worst-of maintenant, tu confirmes ?"
+  },
+  {
+    "id": 8,
+    "category": "user_assumption_trap",
+    "query": "Chez Generali les indices propriétaires passent toujours en référencement, donc c’est bon pour mon produit ?"
+  },
+  {
+    "id": 9,
+    "category": "user_assumption_trap",
+    "query": "AXA référence automatiquement les notes Goldman Sachs, je peux y aller ?"
+  },
+  {
+    "id": 10,
+    "category": "missing_information",
+    "query": "Je veux faire référencer un produit structuré chez Generali, tu peux me dire si ça passe ?"
+  },
+  {
+    "id": 11,
+    "category": "missing_information",
+    "query": "Mon client veut un produit structuré actions dans son assurance vie, qu’est-ce que je peux proposer ?"
+  },
+  {
+    "id": 12,
+    "category": "missing_information",
+    "query": "Je peux faire référencer ce produit sur une plateforme assurance ?"
+  },
+  {
+    "id": 13,
+    "category": "hybrid_referencing_product",
+    "query": "Mon client aime les actions et je travaille avec Cardif, quel produit proposer ?"
+  },
+  {
+    "id": 14,
+    "category": "hybrid_referencing_product",
+    "query": "Entre un phoenix et un athena sur actions, lequel sera plus facile à faire référencer chez AXA ?"
+  },
+  {
+    "id": 15,
+    "category": "hybrid_referencing_product",
+    "query": "Je cherche une structure simple à faire référencer rapidement en assurance vie, tu recommandes quoi ?"
+  }
+]
