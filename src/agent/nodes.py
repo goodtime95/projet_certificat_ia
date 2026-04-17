@@ -14,6 +14,8 @@ from src.domain.models import (
 
 from src.domain.features import ProductFeatures
 
+from src.data.mock_policies import MOCK_POLICY_CHUNKS
+
 import unicodedata
 
 # =========================
@@ -333,6 +335,52 @@ def extract_product_features(state):
     )
 
     state["product_features"] = features
+    return state
+
+# =========================
+# NODE: RETRIEVE RELEVANT DOCUMENTS
+# =========================
+
+def retrieve_relevant_documents(state):
+    """
+    Retrieve insurer policy chunks relevant to the current request.
+
+    Step 2.2 uses a mock retrieval layer rather than a real RAG pipeline.
+    The purpose is to stabilize:
+    - the retrieved_chunks state contract
+    - the graph integration
+    - the downstream interface for future constraint extraction
+
+    Retrieval is currently insurer-driven:
+    each detected insurer maps to a predefined list of policy chunks.
+    """
+
+    req = state["parsed_request"]
+    intent = state["intent"]
+    missing = state.get("missing_fields", [])
+
+    # If no insurer is available, retrieval cannot be performed reliably.
+    if not req.insurers:
+        state["retrieved_chunks"] = []
+        return state
+
+    # Skip retrieval for clarification workflows when the request
+    # is still too incomplete to support meaningful document selection.
+    if intent == UserIntent.CLARIFICATION_NEEDED:
+        state["retrieved_chunks"] = []
+        return state
+
+    # For decision and summary workflows, gather all chunks
+    # associated with the requested insurers.
+    retrieved_chunks = []
+
+    for insurer in req.insurers:
+        insurer_chunks = MOCK_POLICY_CHUNKS.get(insurer, [])
+
+        for chunk in insurer_chunks:
+            retrieved_chunks.append(chunk)
+
+    state["retrieved_chunks"] = retrieved_chunks
     return state
 
 # =========================
