@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from pprint import pprint
 
-from src.agent.graph_chatbot_v1 import build_chatbot_graph
+from src.agent.graph_chatbot_v2 import build_chatbot_graph
 
 
 MODELS = [
@@ -10,7 +10,6 @@ MODELS = [
     "gpt-4.1-mini",
     "gpt-4o",
     "gpt-4o-mini",
-
 ]
 
 INPUT_PATH = Path("inputs/prompts_test_V1.json")
@@ -59,7 +58,7 @@ def run_model_tests(model_name, prompts):
                 "category": category,
                 "model": model_name,
                 "query": query,
-                "answer": result.get("answer"),
+                "structured_output": result.get("structured_output"),
                 "error": result.get("error"),
             }
         )
@@ -74,8 +73,7 @@ def save_results(model_name, results):
 
     OUTPUT_DIR.mkdir(exist_ok=True)
 
-    filename = f"results_{model_name.replace('.', '_')}.json"
-
+    filename = f"results_structured_{model_name.replace('.', '_')}.json"
     output_path = OUTPUT_DIR / filename
 
     with output_path.open("w", encoding="utf-8") as f:
@@ -94,9 +92,7 @@ def main():
     print(f"Loaded {len(prompts)} prompts")
 
     for model_name in MODELS:
-
         results = run_model_tests(model_name, prompts)
-
         save_results(model_name, results)
 
 
