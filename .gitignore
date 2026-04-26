@@ -22,6 +22,8 @@ Thumbs.db
 
 # Application data and caches
 data/
+data_agent/
+data_agent_vect/
 *.sqlite3
 *.db
 *.log

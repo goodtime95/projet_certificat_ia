@@ -72,6 +72,46 @@ Product advice handling:
 - The assistant must not provide investment or sales advice, but should reframe the request toward referencing feasibility.
 - OUT_OF_SCOPE should only be used when the request is unrelated to structured-product referencing or insurance-wrapper eligibility.
 
+Source selection rules:
+
+Identify which information sources are required to answer the request.
+
+Use:
+- "referencing_charter" when the request requires insurer referencing policies,
+  insurer eligibility constraints, wrapper rules, or referencing validation.
+- "email_history" when the user refers to previous email exchanges, insurer replies,
+  confirmations, or commercial discussions.
+- "product_documentation" when the user refers to a term sheet, ISIN, payoff details,
+  KID, prospectus, or product documentation.
+- "internal_note" when the user refers to internal guidelines, internal memos,
+  sales notes, or internal processes.
+- "user_memory" when the user refers to previous conversations, past decisions,
+  remembered preferences, or prior context.
+- "none" only when no external source is required.
+
+Use "email_history" when the user refers to:
+- a previous email
+- an insurer reply
+- what an insurer already said
+- a previous confirmation
+- "ce qu'ils nous ont répondu"
+- "leur dernier retour"
+- "dans les échanges"
+- "par mail"
+If the user explicitly asks about previous emails, previous replies, or what was said "par mail",
+prioritize retrieved_context entries with source_type = "email_history".
+Summarize what the email history says before adding referencing charter context.
+
+For referencing feasibility, policy confirmation, and constraint summary requests,
+include "referencing_charter" unless the request is clearly out of scope. 
+
+If multiple source types are retrieved, answer in this order:
+1. directly requested source type
+2. referencing charter
+3. general clarification / next steps
+
+For PRODUCT_ADVICE without any insurer or platform, required_sources may be empty.
+
 Return only the structured object matching the expected schema.
 """
 

@@ -1,4 +1,5 @@
 from langchain_openai import ChatOpenAI
+
 from src.agent_v2.prompts import (
     INTERPRETATION_SYSTEM_PROMPT,
     ANSWER_SYSTEM_PROMPT,
@@ -8,11 +9,30 @@ from src.agent_v2.schemas import (
     AgentAnswer,
     Intent,
     ResponseMode,
+    SourceNeed,
 )
 from src.agent_v2.state import AgentV2State
 
+from src.retrieval.context_retriever import retrieve_context_from_index
+
 from pathlib import Path
 from typing import Any, Dict, List
+
+REFERENCEMENT_DIR = Path("data/referencement")
+
+INSURER_FILE_MAP = {
+    "axa": "axa.md",
+    "aep": "aep.md",
+    "generali": "generali.md",
+}
+
+EMAIL_HISTORY_DIR = Path("data/email_history_mock")
+
+EMAIL_FILE_MAP = {
+    "axa": "axa.md",
+    "aep": "aep.md",
+    "generali": "generali.md",
+}
 
 
 def make_interpret_user_request_node(model_name: str):
@@ -91,7 +111,7 @@ def make_generate_answer_node(model_name: str):
                      "content": ("INTERPRETED REQUEST:\n"
                                  f"{interpreted.model_dump_json(indent=2)}\n\n"
                                  "RETRIEVED POLICY CHUNKS:\n"
-                                 f"{state.get('retrieved_chunks', [])}"),
+                                 f"{state.get('retrieved_context', [])}"),
                     },
                 ]
             )
@@ -109,70 +129,44 @@ def make_generate_answer_node(model_name: str):
     return generate_answer
 
 
-REFERENCEMENT_DIR = Path("data/referencement_mock")
 
-INSURER_FILE_MAP = {
-    "axa": "axa.md",
-    "aep": "aep.md",
-    "generali": "generali.md",
-}
-
-def retrieve_policy_chunks(state: AgentV2State) -> AgentV2State:
+def retrieve_context(state: AgentV2State) -> AgentV2State:
     """
-    Retrieve local referencing policy documents based on detected insurers.
+    Retrieve context from the local multi-source vector index.
 
-    This is a minimal local RAG-like retrieval layer.
-    It does not use embeddings yet.
-
-    The goal is to connect:
-    interpreted_request.insurers -> retrieved_chunks
-
-    Each retrieved chunk contains:
-    - insurer
-    - source path
-    - content
+    The runtime agent does not read raw files directly.
+    It only consumes the offline-built vector index from data_agent_vect.
     """
 
     interpreted = state.get("interpreted_request")
 
     if interpreted is None:
         return {
-            "retrieved_chunks": [],
-            "error": "No interpreted_request available for retrieval.",
+            "retrieved_context": [],
+            "error": "No interpreted_request available for context retrieval.",
         }
 
-    retrieved_chunks: List[Dict[str, Any]] = []
+    source_types = [source.value for source in interpreted.required_sources]
 
-    for insurer in interpreted.insurers:
-        insurer_key = insurer.lower().strip()
-        filename = INSURER_FILE_MAP.get(insurer_key)
+    if not source_types:
+        return {
+            "retrieved_context": [],
+        }
 
-        if filename is None:
-            continue
-
-        file_path = REFERENCEMENT_DIR / filename
-
-        if not file_path.exists():
-            retrieved_chunks.append(
-                {
-                    "insurer": insurer,
-                    "source": str(file_path),
-                    "content": "",
-                    "error": "Policy file not found.",
-                }
-            )
-            continue
-
-        content = file_path.read_text(encoding="utf-8")
-
-        retrieved_chunks.append(
-            {
-                "insurer": insurer,
-                "source": str(file_path),
-                "content": content,
-            }
+    try:
+        retrieved_context = retrieve_context_from_index(
+            query=state["user_query"],
+            insurers=interpreted.insurers,
+            source_types=source_types,
+            k=6,
         )
 
-    return {
-        "retrieved_chunks": retrieved_chunks,
-    }
+        return {
+            "retrieved_context": retrieved_context,
+        }
+
+    except Exception as exc:
+        return {
+            "retrieved_context": [],
+            "error": str(exc),
+        }

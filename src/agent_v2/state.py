@@ -9,7 +9,11 @@ class AgentV2State(TypedDict, total=False):
 
     interpreted_request: InterpretedRequest
 
-    retrieved_chunks: List[Dict[str, Any]]
+    retrieved_context: List[Dict[str, Any]]
+    # Retrieved context from one or more available knowledge sources.
+    # Current implementation supports local referencing charter files.
+    # Future sources may include emails, product documentation, internal notes,
+    # and user memory.
 
     answer: AgentAnswer
 

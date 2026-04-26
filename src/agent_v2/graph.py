@@ -4,7 +4,7 @@ from src.agent_v2.state import AgentV2State
 from src.agent_v2.nodes import (
     make_interpret_user_request_node,
     make_generate_answer_node,
-    retrieve_policy_chunks,
+    retrieve_context,
 )
 
 
@@ -18,8 +18,8 @@ def build_agent_v2_graph(model_name: str):
     )
 
     graph.add_node(
-        "retrieve_policy_chunks",
-        retrieve_policy_chunks,
+        "retrieve_context",
+        retrieve_context,
     )
 
     graph.add_node(
@@ -31,11 +31,11 @@ def build_agent_v2_graph(model_name: str):
 
     graph.add_edge(
         "interpret_user_request",
-        "retrieve_policy_chunks",
+        "retrieve_context",
     )
 
     graph.add_edge(
-        "retrieve_policy_chunks",
+        "retrieve_context",
         "generate_answer",
     )
 
