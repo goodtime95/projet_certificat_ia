@@ -37,76 +37,85 @@ def retrieve_context_from_index(
     query: str,
     insurers: Optional[List[str]] = None,
     source_types: Optional[List[str]] = None,
-    k: int = 6,
+    k_per_source: int = 3,
 ) -> List[Dict[str, Any]]:
+    
     """
     Retrieve relevant chunks from the local multi-source Chroma index.
 
-    Filtering is applied after semantic search using metadata:
+    Retrieval is balanced by:
     - insurer
-    - source_type
+    - source type
+
+    This prevents one insurer with highly similar chunks from dominating
+    the retrieved context in multi-insurer questions.
     """
 
     vectorstore = get_context_vectorstore()
 
-    insurers_upper = {x.upper() for x in insurers or []}
-    source_type_set = set(source_types or [])
+    insurers_list = insurers or [None]
+    source_types_list = source_types or [None]
 
-    search_query = query
+    retrieved_items: List[Dict[str, Any]] = []
 
-    if insurers:
-        search_query += "\nInsurers: " + ", ".join(insurers)
+    for insurer in insurers_list:
+        for source_type in source_types_list:
+            search_query = query
 
-    if source_types:
-        search_query += "\nSource types: " + ", ".join(source_types)
+            if insurer:
+                search_query += f"\nTarget insurer: {insurer}"
 
-    docs = vectorstore.similarity_search(
-        search_query,
-        k=max(k * 5, k),
-    )
+            if source_type:
+                search_query += f"\nSource type: {source_type}"
 
-    filtered_docs = []
+            docs = vectorstore.similarity_search(
+                search_query,
+                k=max(k_per_source * 5, k_per_source),
+            )
 
-    for doc in docs:
-        doc_insurer = str(doc.metadata.get("insurer", "")).upper()
-        doc_source_type = str(doc.metadata.get("source_type", ""))
+            filtered_docs = []
 
-        if insurers_upper and doc_insurer not in insurers_upper:
-            continue
+            for doc in docs:
+                doc_insurer = str(doc.metadata.get("insurer", "")).upper()
+                doc_source_type = str(doc.metadata.get("source_type", ""))
 
-        if source_type_set and doc_source_type not in source_type_set:
-            continue
+                if insurer and doc_insurer != insurer.upper():
+                    continue
 
-        filtered_docs.append(doc)
+                if source_type and doc_source_type != source_type:
+                    continue
 
-        if len(filtered_docs) >= k:
-            break
+                filtered_docs.append(doc)
 
-    if (insurers_upper or source_type_set) and not filtered_docs:
-        return [
-            {
-                "business_domain": "referencement",
-                "source_type": source_type,
-                "entity": insurer,
-                "source_name": None,
-                "source_path": None,
-                "page": None,
-                "content": "",
-                "error": "No matching context found in local vector index.",
-            }
-            for insurer in (insurers or [None])
-            for source_type in (source_types or [None])
-        ]
+                if len(filtered_docs) >= k_per_source:
+                    break
 
-    return [
-        {
-            "business_domain": doc.metadata.get("business_domain"),
-            "source_type": doc.metadata.get("source_type"),
-            "entity": doc.metadata.get("insurer"),
-            "source_name": doc.metadata.get("source_name"),
-            "source_path": doc.metadata.get("source_path"),
-            "page": doc.metadata.get("page"),
-            "content": doc.page_content,
-        }
-        for doc in filtered_docs
-    ]
+            if not filtered_docs:
+                retrieved_items.append(
+                    {
+                        "business_domain": "referencement",
+                        "source_type": source_type,
+                        "entity": insurer,
+                        "source_name": None,
+                        "source_path": None,
+                        "page": None,
+                        "content": "",
+                        "error": "No matching context found in local vector index.",
+                    }
+                )
+                continue
+
+            for doc in filtered_docs:
+                retrieved_items.append(
+                    {
+                        "business_domain": doc.metadata.get("business_domain"),
+                        "source_type": doc.metadata.get("source_type"),
+                        "entity": doc.metadata.get("insurer"),
+                        "source_name": doc.metadata.get("source_name"),
+                        "source_path": doc.metadata.get("source_path"),
+                        "page": doc.metadata.get("page"),
+                        "content": doc.page_content,
+                    }
+                )
+
+    return retrieved_items
