@@ -40,7 +40,6 @@ def build_agent_v2_graph(model_name: str):
                      make_generate_answer_node(model_name)
     )
 
-
     graph.add_edge(START, "interpret_user_request")
 
     graph.add_conditional_edges(

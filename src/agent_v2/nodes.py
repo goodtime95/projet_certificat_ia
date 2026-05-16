@@ -12,6 +12,7 @@ from src.agent_v2.schemas import (
     Intent,
     ResponseMode,
     SourceReference,
+    ConversationContext,
 )
 
 from src.agent_v2.state import AgentV2State
@@ -29,6 +30,13 @@ MEMORY_FILES = {
 REFERENCEMENT_DIR = Path("data/referencement")
 
 EMAIL_HISTORY_DIR = Path("data/email_history_mock")
+
+RETRIEVAL_INTENTS = {
+    Intent.REFERENCING_FEASIBILITY,
+    Intent.CONSTRAINT_SUMMARY,
+    Intent.POLICY_CONFIRMATION,
+    Intent.MEMORY_OR_HISTORY,
+}
 
 def _read_file(path: Path) -> str:
     if not path.exists():
@@ -50,15 +58,70 @@ def make_interpret_user_request_node(model_name: str = "gpt-4.1"):
 
         try:
 
-            result = structured_llm.invoke(
-                [
-                    {"role": "system", "content": INTERPRETATION_SYSTEM_PROMPT},
-                    {"role": "user", "content": query},
-                ]
+            history = state.get("conversation_history", [])
+            conversation_context = state.get("conversation_context")
+
+            context_payload = (
+                conversation_context.model_dump()
+                if conversation_context
+                else None
+            )
+
+            messages = [
+                {
+                    "role": "system",
+                    "content": INTERPRETATION_SYSTEM_PROMPT,
+                }
+            ]
+
+            messages.extend(history[-6:])
+
+            messages.append(
+                {
+                    "role": "user",
+                    "content": f"""
+        REQUÊTE UTILISATEUR :
+        {query}
+
+        CONTEXTE MÉTIER ACTIF :
+        {context_payload}
+
+        Instruction :
+        Si la requête utilisateur est elliptique alors utilise le CONTEXTE MÉTIER ACTIF pour reconstruire la demande complète.
+        Ne classe pas la demande en UNCLEAR si le contexte métier actif permet de comprendre :
+        - le produit,
+        - l’assureur,
+        - ou la question métier.
+        """
+                }
+            )
+            # print("\n" + "=" * 80)
+            # print("DEBUG - INTERPRETER INPUT MESSAGES")
+            # print("=" * 80)
+
+            # for i, message in enumerate(messages):
+            #     print(f"\n--- MESSAGE {i} ---")
+            #     print(f"role: {message.get('role')}")
+            #     print(message.get("content"))
+
+            result = structured_llm.invoke(messages)
+
+            # print("\n" + "=" * 80)
+            # print("DEBUG - INTERPRETER OUTPUT")
+            # print("=" * 80)
+            # print(result.model_dump_json(indent=2))
+            # print("=" * 80 + "\n")
+
+            previous_context = state.get("conversation_context")
+
+            updated_context = update_conversation_context(
+                previous_context=previous_context,
+                interpreted=result,
             )
 
             return {
                 "interpreted_request": result,
+                "conversation_context": updated_context,
                 "model_used": model_name,
             }
 
@@ -125,20 +188,29 @@ def load_memory_context(state: AgentV2State) -> AgentV2State:
         "memory_context": "\n\n".join(sections) or "No memory context found."
     }
 
+
 def route_after_memory(state: AgentV2State) -> str:
     interpreted = state.get("interpreted_request")
 
     if interpreted is None:
         return "generate_fast_response"
 
-    if not interpreted.required_sources:
-        return "generate_answer"
+    if interpreted.intent in RETRIEVAL_INTENTS:
+        return "retrieve_context"
 
-    return "retrieve_context"
+    if interpreted.required_sources:
+        return "retrieve_context"
+
+    return "generate_answer"
 
 def retrieve_context(state: AgentV2State) -> dict:
     interpreted = state.get("interpreted_request")
     user_query = state.get("user_query", "")
+    retrieval_query = (
+        interpreted.standalone_query
+        if interpreted and interpreted.standalone_query
+        else user_query
+    )
 
     if interpreted is None:
         return {
@@ -150,13 +222,37 @@ def retrieve_context(state: AgentV2State) -> dict:
     insurers = interpreted.insurers or []
 
     retrieved_context = retrieve_context_from_index(
-        query=user_query,
+        query=retrieval_query,
         insurers=insurers,
         k_per_insurer=5,
     )
 
+    sources_found = sorted(
+        {
+            chunk.get("source_type")
+            for chunk in retrieved_context
+            if chunk.get("source_type")
+        }
+    )
+
+    entities_found = sorted(
+        {
+            chunk.get("entity")
+            for chunk in retrieved_context
+            if chunk.get("entity")
+        }
+    )
+
+    retrieval_status = {
+        "chunks_found": len(retrieved_context),
+        "insurers_requested": insurers,
+        "entities_found": entities_found,
+        "sources_found": sources_found,
+    }
+
     return {
         "retrieved_context": retrieved_context,
+        "retrieval_status": retrieval_status,
     }
 
 def format_context(chunks: list[dict]) -> str:
@@ -293,7 +389,7 @@ def make_generate_answer_node(model_name: str = "gpt-4.1"):
                             "MÉMOIRE / CONTEXTE UTILISATEUR :\n"
                             f"{memory_context}\n\n"
                             "STATUT DU RETRIEVAL :\n"
-                            f"{retrieval_status or 'unknown'}\n\n"
+                            f"{retrieval_status if retrieval_status else {'status': 'not_run'}}\n\n"
                             "CONTEXTE DOCUMENTAIRE RÉCUPÉRÉ :\n"
                             f"{formatted_context}"
                         ),
@@ -326,301 +422,30 @@ def make_generate_answer_node(model_name: str = "gpt-4.1"):
 
     return generate_answer
 
-# def summarize_retrieved_context(state: AgentV2State) -> AgentV2State:
-#     """
-#     Build a compact summary of retrieved context before answer generation.
 
-#     This is not a rule engine.
-#     It helps the final LLM distinguish:
-#     - issuer rules
-#     - underlying rules
-#     - wrapper rules
-#     - ESG constraints
-#     - validation requirements
-#     - missing or weak sources
+def update_conversation_context(
+    previous_context: ConversationContext | None,
+    interpreted: InterpretedRequest,
+) -> ConversationContext:
+    previous_context = previous_context or ConversationContext()
 
-#     It uses normalized retrieval output when available:
-#     - valid_retrieved_context
-#     - missing_context_sources
-#     - weak_context_sources
-#     """
+    active_insurers = (
+        interpreted.insurers
+        if interpreted.insurers
+        else previous_context.active_insurers
+    )
 
-#     retrieved_context = state.get(
-#         "valid_retrieved_context",
-#         state.get("retrieved_context", []),
-#     )
+    active_products = (
+        interpreted.products
+        if interpreted.products
+        else previous_context.active_products
+    )
 
-#     missing_sources = state.get("missing_context_sources", [])
-#     weak_sources = state.get("weak_context_sources", [])
+    active_topic = interpreted.intent.value if interpreted.intent else previous_context.active_topic
 
-#     lines = []
-
-#     if retrieved_context:
-#         lines.append("Retrieved usable context:")
-
-#     for item in retrieved_context:
-#         entity = item.get("entity") or "UNKNOWN_ENTITY"
-#         source_type = item.get("source_type") or "UNKNOWN_SOURCE_TYPE"
-#         source_name = item.get("source_name") or "UNKNOWN_SOURCE"
-#         page = item.get("page")
-#         content = (item.get("content") or "").strip()
-
-#         if not content:
-#             continue
-
-#         header = f"{entity} | {source_type} | {source_name}"
-#         if page is not None:
-#             header += f" | page {page}"
-
-#         content_lower = content.lower()
-#         detected_topics = []
-
-#         topic_rules = {
-#             "issuer rules": [
-#                 "émetteur",
-#                 "emetteur",
-#                 "issuer",
-#                 "contrepartie",
-#                 "counterparty",
-#                 "rating",
-#                 "notation",
-#             ],
-#             "underlying rules": [
-#                 "sous-jacent",
-#                 "sous-jacents",
-#                 "underlying",
-#                 "underlyings",
-#                 "indice",
-#                 "indices",
-#                 "panier",
-#                 "basket",
-#                 "titre",
-#                 "actions",
-#             ],
-#             "wrapper rules": [
-#                 "uc",
-#                 "unit-linked",
-#                 "unité de compte",
-#                 "unites de compte",
-#                 "fonds euro",
-#                 "assurance vie",
-#                 "capitalisation",
-#             ],
-#             "ESG constraints": [
-#                 "esg",
-#                 "exclusion",
-#                 "exclusions",
-#                 "controverse",
-#                 "controverses",
-#             ],
-#             "validation requirement": [
-#                 "validation",
-#                 "pré-validation",
-#                 "pre-validation",
-#                 "agrément",
-#                 "agrement",
-#                 "accord préalable",
-#                 "cas par cas",
-#                 "soumis à validation",
-#             ],
-#             "maturity constraints": [
-#                 "maturité",
-#                 "maturite",
-#                 "tenor",
-#                 "durée",
-#                 "duree",
-#                 "ans",
-#                 "années",
-#                 "annees",
-#             ],
-#             "refusal / exclusion rules": [
-#                 "refusé",
-#                 "refuse",
-#                 "refus",
-#                 "non-référençable",
-#                 "non referencable",
-#                 "exclu",
-#                 "exclus",
-#                 "interdit",
-#             ],
-#         }
-
-#         for topic, keywords in topic_rules.items():
-#             if any(keyword in content_lower for keyword in keywords):
-#                 detected_topics.append(topic)
-
-#         if not detected_topics:
-#             detected_topics.append("general context")
-
-#         excerpt = " ".join(content.split())
-#         if len(excerpt) > 700:
-#             excerpt = excerpt[:700] + "..."
-
-#         lines.append(
-#             f"- {header}: topics={detected_topics}. Excerpt: {excerpt}"
-#         )
-
-#     if missing_sources:
-#         lines.append("")
-#         lines.append("Missing context sources:")
-#         for source in missing_sources:
-#             entity = source.get("entity") or "UNKNOWN_ENTITY"
-#             source_type = source.get("source_type") or "UNKNOWN_SOURCE_TYPE"
-#             message = source.get("message") or "No relevant context retrieved."
-#             lines.append(
-#                 f"- {entity} | {source_type}: {message}"
-#             )
-
-#     if weak_sources:
-#         lines.append("")
-#         lines.append("Weak context sources:")
-#         for source in weak_sources:
-#             entity = source.get("entity") or "UNKNOWN_ENTITY"
-#             source_type = source.get("source_type") or "UNKNOWN_SOURCE_TYPE"
-#             source_name = source.get("source_name") or "UNKNOWN_SOURCE"
-#             page = source.get("page")
-#             reason = source.get("reason") or "Weak or administrative context."
-
-#             header = f"{entity} | {source_type} | {source_name}"
-#             if page is not None:
-#                 header += f" | page {page}"
-
-#             lines.append(
-#                 f"- {header}: {reason}"
-#             )
-
-#     if not lines:
-#         return {
-#             "context_summary": "No relevant context was retrieved."
-#         }
-
-#     return {
-#         "context_summary": "\n".join(lines)
-#     }
-
-
-# def make_judge_answer_node(model_name: str = "gpt-4.1"):
-#     """
-#     Create a final answer judge node.
-#     The judge reviews the draft answer and either keeps it or corrects it.
-#     """
-
-#     llm = ChatOpenAI(
-#         model=model_name,
-#         temperature=0,
-#     )
-
-#     structured_llm = llm.with_structured_output(AgentAnswer)
-
-#     def judge_answer(state: AgentV2State) -> AgentV2State:
-#         answer_draft = state.get("answer_draft")
-#         interpreted = state.get("interpreted_request")
-
-#         if answer_draft is None:
-#             return {
-#                 "error": "No answer_draft available for judge.",
-#             }
-
-#         try:
-#             result = structured_llm.invoke(
-#                 [
-#                     {
-#                         "role": "system",
-#                         "content": JUDGE_SYSTEM_PROMPT,
-#                     },
-#                     {
-#                         "role": "user",
-#                         "content": (
-#                             "INTERPRETED REQUEST:\n"
-#                             f"{interpreted.model_dump_json(indent=2) if interpreted else None}\n\n"
-#                             "MEMORY CONTEXT:\n"
-#                             f"{state.get('memory_context', '')}\n\n"
-#                             "CONTEXT SUMMARY:\n"
-#                             f"{state.get('context_summary', '')}\n\n"
-#                             "RETRIEVED CONTEXT:\n"
-#                             f"{state.get('retrieved_context', [])}\n\n"
-#                             "DRAFT ANSWER:\n"
-#                             f"{answer_draft.model_dump_json(indent=2)}"
-#                         ),
-#                     },
-#                 ]
-#             )
-
-#             return {
-#                 "final_answer": result
-#             }
-
-#         except Exception as exc:
-#             return {
-#                 "final_answer": answer_draft,
-#                 "error": f"Judge failed, using draft answer: {exc}",
-#             }
-
-#     return judge_answer
-
-
-
-# def normalize_retrieved_context(state: AgentV2State) -> AgentV2State:
-    retrieved_context = state.get("retrieved_context", [])
-
-    valid_context = []
-    missing_sources = []
-    weak_sources = []
-
-    for item in retrieved_context:
-        if item.get("error"):
-            missing_sources.append({
-                "entity": item.get("entity"),
-                "source_type": item.get("source_type"),
-                "message": item.get("error"),
-            })
-            continue
-
-        content = (item.get("content") or "").strip()
-
-        if not content:
-            missing_sources.append({
-                "entity": item.get("entity"),
-                "source_type": item.get("source_type"),
-                "message": "Empty retrieved content.",
-            })
-            continue
-
-        # Source faible : ex. page de contacts, administratif, pas de règles métier
-        content_lower = content.lower()
-        has_rule_signal = any(
-            keyword in content_lower
-            for keyword in [
-                "émetteur",
-                "issuer",
-                "sous-jacent",
-                "underlying",
-                "validation",
-                "accepté",
-                "refusé",
-                "exclusion",
-                "esg",
-                "uc",
-                "fonds euro",
-                "maturité",
-                "notation",
-                "rating",
-            ]
-        )
-
-        if not has_rule_signal:
-            weak_sources.append({
-                "entity": item.get("entity"),
-                "source_type": item.get("source_type"),
-                "source_name": item.get("source_name"),
-                "page": item.get("page"),
-                "reason": "No clear business rule signal found.",
-            })
-
-        valid_context.append(item)
-
-    return {
-        "valid_retrieved_context": valid_context,
-        "missing_context_sources": missing_sources,
-        "weak_context_sources": weak_sources,
-    }
+    return ConversationContext(
+        active_insurers=active_insurers,
+        active_products=active_products,
+        active_topic=active_topic,
+        last_intent=interpreted.intent,
+    )

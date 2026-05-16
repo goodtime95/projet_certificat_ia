@@ -8,9 +8,10 @@ class Intent(str, Enum):
     POLICY_CONFIRMATION = "policy_confirmation"
     MEMORY_OR_HISTORY = "memory_or_history"
     PRODUCT_ADVICE = "product_advice"
+    END_CONVERSATION = "end_conversation"
+    RESET_CONVERSATION = "reset_conversation"
     OUT_OF_SCOPE = "out_of_scope"
     UNCLEAR = "unclear"
-
 
 class SourceNeed(str, Enum):
     REFERENCING_CHARTER = "referencing_charter"
@@ -34,6 +35,7 @@ class DetectedInconsistency(BaseModel):
     message: str
 
 class InterpretedRequest(BaseModel):
+    standalone_query: Optional[str] = None
     intent: Intent
     insurers: List[str] = Field(default_factory=list)
     products: List[ProductCandidate] = Field(default_factory=list)
@@ -68,6 +70,12 @@ class AgentAnswer(BaseModel):
         "medium",
         "high"
     ] = "medium"
+
+class ConversationContext(BaseModel):
+    active_insurers: List[str] = Field(default_factory=list)
+    active_products: List[ProductCandidate] = Field(default_factory=list)
+    active_topic: Optional[str] = None
+    last_intent: Optional[Intent] = None
 
 
 
