@@ -8,12 +8,14 @@ MODEL_NAME = "gpt-4.1-mini"
 
 
 TEST_QUERIES = [
+    "Conseille moi un structuré simple à vendre en assurance vie chez Abeille?",
+    "je veux référencer un autocall sur Total Energies Fix dividende trimestriel chez Axa, faisable ?",
     "J’ai deux sujets à pousser : un phoenix worst-of 10 ans sur un panier d'actions Generali, BNP et un Athena EuroStoxx 50 6 ans, est-ce que ça se référence plutôt chez Abeille ou chez AEP ?",
     "Je veux lancer un structuré assez standard chez AXA, tu penses qu’on peut le faire référencer vite ?",
     "On est d’accord qu’AXA prend maintenant automatiquement tous les EMTN 12 ans bien notés, donc je peux déjà partir sur la structure sans même attendre leur retour ?",
-     "Je veux mettre un autocall SX5E en UC dans le fonds euro Generali, c’est bien le bon setup pour l’assurance vie française non ?",
-     "Tu me recommanderais quoi comme structuré simple à vendre vite en assurance vie en ce moment ?",
-     "Tu te souviens de ce qu’AXA nous avait répondu par mail sur les EMTN 12 ans ?",
+    "Je veux mettre un autocall SX5E en UC dans le fonds euro Generali, c’est bien le bon setup pour l’assurance vie française non ?",
+    "Tu me recommanderais quoi comme structuré simple à vendre vite en assurance vie en ce moment ?",
+    "Tu te souviens de ce qu’AXA nous avait répondu par mail sur les EMTN 12 ans ?",
 ]
 
 

@@ -160,8 +160,8 @@ def build_data_index() -> None:
         raise ValueError(f"No supported documents found in {RAW_DATA_ROOT}")
 
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=150,
+        chunk_size=500,
+        chunk_overlap=25,
     )
 
     chunks = splitter.split_documents(documents)
