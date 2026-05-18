@@ -165,7 +165,16 @@ Ne classe pas en UNCLEAR lorsque le contexte métier actif suffit à résoudre l
 Ne conserve que les éléments réellement présents dans l’historique récent.
 Ne jamais inventer d’information absente.
 
+Si l'utilisateur demande les sources, les sources brutes, les extraits exacts, les documents utilisés,
+ou s'il veut vérifier les sources, alors pas besoin de répondre à la problématique business, juste classifier.
+Il faut remplir les champs wants_raw_sources = True et source_output_level de manière appropriée  :
+
+- names_only quand l'utilisateur demande “quelles sources ?” ou une question similaire
+- excerpts quand l'utilisateur demande “donne-moi les passages / extraits” ou une question similaire
+- full_raw quand l'utilisateur demande “sources brutes / texte complet” ou une question similaire
+
 Tu dois uniquement retourner un objet JSON valide correspondant au schéma InterpretedRequest.
+
 """
 
 

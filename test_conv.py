@@ -61,6 +61,8 @@ graph = build_agent_v2_graph(MODEL_NAME)
 
 conversation_history = []
 conversation_context = None
+last_retrieved_context = None
+last_answer = None
 
 
 # ============================================================
@@ -95,6 +97,8 @@ while True:
     if query_lower in RESET_KEYWORDS:
         conversation_history = []
         conversation_context = None
+        last_retrieved_context = None
+        last_answer = None
 
         print("\nConversation memory cleared.")
         continue
@@ -120,6 +124,8 @@ while True:
                 "user_query": user_query,
                 "conversation_history": conversation_history[:-1],
                 "conversation_context": conversation_context,
+                "last_retrieved_context": last_retrieved_context,
+                "last_answer": last_answer,
             }
         )
 
@@ -180,6 +186,16 @@ while True:
 
         continue
 
+    last_retrieved_context = result.get(
+    "last_retrieved_context",
+    result.get("retrieved_context", last_retrieved_context),
+        )
+
+    last_answer = result.get(
+    "last_answer",
+    answer,
+        )
+    
     # --------------------------------------------------------
     # DISPLAY ANSWER
     # --------------------------------------------------------
@@ -205,6 +221,25 @@ while True:
                 f"{source.source_name} | "
                 f"page={source.page}"
             )
+
+    if answer.raw_sources:
+        print("\nraw_sources :")
+
+        for source in answer.raw_sources:
+            print("\n" + "-" * 60)
+            print(f"source_id   : {source.source_id}")
+            print(f"entity      : {source.entity}")
+            print(f"source_type : {source.source_type}")
+            print(f"source_name : {source.source_name}")
+            print(f"page        : {source.page}")
+
+            if source.excerpt:
+                print("\nexcerpt :")
+                print(source.excerpt)
+
+            if source.raw_text:
+                print("\nraw_text :")
+                print(source.raw_text)
 
     # --------------------------------------------------------
     # ADD ASSISTANT MESSAGE TO HISTORY
@@ -239,8 +274,14 @@ while True:
                 else None
             ),
             "retrieved_context": result.get("retrieved_context"),
+            "last_retrieved_context": last_retrieved_context,
             "retrieval_status": result.get("retrieval_status"),
             "answer": answer.model_dump(),
+            "last_answer": (
+                last_answer.model_dump()
+                if last_answer
+                else None
+            ),
             "model_used": result.get("model_used"),
             "error": result.get("error"),
         }

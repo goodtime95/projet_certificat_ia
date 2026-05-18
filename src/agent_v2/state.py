@@ -13,6 +13,8 @@ class AgentV2State(TypedDict, total=False):
     memory_context: str
 
     retrieved_context: List[Dict[str, Any]]
+    last_retrieved_context: List[Dict[str, Any]]
+
     missing_context_sources: List[Dict[str, Any]]
 
     retrieval_status: Dict[str, Any]

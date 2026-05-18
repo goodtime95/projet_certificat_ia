@@ -13,6 +13,7 @@ from src.agent_v2.schemas import (
     ResponseMode,
     SourceReference,
     ConversationContext,
+    RawSourceOutput,
 )
 
 from src.agent_v2.state import AgentV2State
@@ -139,6 +140,11 @@ def route_after_interpretation(state: AgentV2State) -> str:
     if interpreted is None:
         return "generate_fast_response"
 
+    if interpreted.wants_raw_sources:
+        if state.get("last_retrieved_context"):
+            return "raw_sources_node"
+        return "generate_fast_response"
+
     if interpreted.intent in {
         Intent.OUT_OF_SCOPE,
         Intent.UNCLEAR,
@@ -187,7 +193,6 @@ def load_memory_context(state: AgentV2State) -> AgentV2State:
     return {
         "memory_context": "\n\n".join(sections) or "No memory context found."
     }
-
 
 def route_after_memory(state: AgentV2State) -> str:
     interpreted = state.get("interpreted_request")
@@ -253,6 +258,82 @@ def retrieve_context(state: AgentV2State) -> dict:
     return {
         "retrieved_context": retrieved_context,
         "retrieval_status": retrieval_status,
+    }
+
+def route_after_retrieval(state: AgentV2State) -> str:
+    interpreted = state.get("interpreted_request")
+
+    if interpreted and interpreted.wants_raw_sources:
+        return "raw_sources_node"
+
+    return "generate_answer"
+
+def raw_sources_node(state: AgentV2State) -> dict:
+    interpreted = state.get("interpreted_request")
+
+    if interpreted is None:
+        return {
+            "answer": AgentAnswer(
+                mode=ResponseMode.CLARIFY,
+                answer="Je n’ai pas assez de contexte pour retrouver les sources.",
+                missing_information=[],
+                sources_used=[],
+                source_ids=[],
+                raw_sources=[],
+                confidence="low",
+            )
+        }
+
+    level = interpreted.source_output_level
+
+    retrieved_context = (
+        state.get("retrieved_context")
+        or state.get("last_retrieved_context")
+        or []
+    )
+
+    if not retrieved_context:
+        return {
+            "answer": AgentAnswer(
+                mode=ResponseMode.CLARIFY,
+                answer="Je n’ai pas de sources précédemment récupérées à afficher.",
+                missing_information=[],
+                sources_used=[],
+                source_ids=[],
+                raw_sources=[],
+                confidence="low",
+            )
+        }
+
+    raw_sources = []
+
+    for i, chunk in enumerate(retrieved_context, start=1):
+        source_id = chunk.get("source_id") or f"S{i}"
+
+        item = RawSourceOutput(
+            source_id=source_id,
+            entity=chunk.get("entity"),
+            source_type=chunk.get("source_type") or "unknown_source",
+            source_name=chunk.get("source_name") or "unknown_file",
+            page=chunk.get("page"),
+            excerpt=chunk.get("content") if level == "excerpts" else None,
+            raw_text=chunk.get("content") if level == "full_raw" else None,
+        )
+
+        raw_sources.append(item)
+
+    return {
+        "answer": AgentAnswer(
+            mode=ResponseMode.RAW_SOURCES,
+            answer="Voici les sources utilisées.",
+            missing_information=[],
+            sources_used=[],
+            source_ids=[s.source_id for s in raw_sources],
+            raw_sources=raw_sources,
+            confidence="high",
+        ),
+        "retrieved_context": retrieved_context,
+        "last_retrieved_context": retrieved_context,
     }
 
 def format_context(chunks: list[dict]) -> str:
@@ -369,6 +450,9 @@ def make_generate_answer_node(model_name: str = "gpt-4.1"):
             return {
                 "answer": fallback,
             }
+        
+        if interpreted.wants_raw_sources:
+            raise ValueError("Raw source request should not reach generate_answer")
 
         formatted_context = format_context(retrieved_context)
 
@@ -401,6 +485,8 @@ def make_generate_answer_node(model_name: str = "gpt-4.1"):
 
             return {
                 "answer": result,
+                "last_answer": result,
+                "last_retrieved_context": retrieved_context,
             }
 
         except Exception as e:
@@ -421,7 +507,6 @@ def make_generate_answer_node(model_name: str = "gpt-4.1"):
             }
 
     return generate_answer
-
 
 def update_conversation_context(
     previous_context: ConversationContext | None,
