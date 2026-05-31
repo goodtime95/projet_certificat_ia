@@ -32,6 +32,12 @@ data_agent_vect/
 # Old code
 old/
 
+# logs
+logs/
+
+# soutenance
+soutenance/
+
 # Indexes and model artifacts
 rag_index.json.faiss
 rag_index.json.meta

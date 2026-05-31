@@ -48,7 +48,7 @@ def make_interpret_user_request_node(model_name: str = "gpt-4.1"):
 
     llm = ChatOpenAI(
         model=model_name,
-        temperature=0,
+        temperature=0.0,
     )
 
     structured_llm = llm.with_structured_output(InterpretedRequest)
@@ -96,23 +96,7 @@ def make_interpret_user_request_node(model_name: str = "gpt-4.1"):
         """
                 }
             )
-            # print("\n" + "=" * 80)
-            # print("DEBUG - INTERPRETER INPUT MESSAGES")
-            # print("=" * 80)
-
-            # for i, message in enumerate(messages):
-            #     print(f"\n--- MESSAGE {i} ---")
-            #     print(f"role: {message.get('role')}")
-            #     print(message.get("content"))
-
             result = structured_llm.invoke(messages)
-
-            # print("\n" + "=" * 80)
-            # print("DEBUG - INTERPRETER OUTPUT")
-            # print("=" * 80)
-            # print(result.model_dump_json(indent=2))
-            # print("=" * 80 + "\n")
-
             previous_context = state.get("conversation_context")
 
             updated_context = update_conversation_context(
